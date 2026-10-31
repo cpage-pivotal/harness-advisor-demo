@@ -49,6 +49,8 @@ out/
 .env
 .env.*
 !.env.example
+vars.yaml
+.playwright-cli/
 .advisor/
 demo/artifactory/data/
 demo/artifactory/downloads/

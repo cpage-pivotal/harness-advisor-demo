@@ -1,0 +1,43 @@
+name: advisor-artifactory
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: artifactory
+      POSTGRES_USER: artifactory
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Create demo/artifactory/.env first}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U artifactory -d artifactory"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  artifactory:
+    image: releases-docker.jfrog.io/jfrog/artifactory-oss:7.161.26
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENABLE_MIGRATION: "y"
+      JF_SHARED_DATABASE_TYPE: postgresql
+      JF_SHARED_DATABASE_USERNAME: artifactory
+      JF_SHARED_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Create demo/artifactory/.env first}
+      JF_SHARED_DATABASE_URL: jdbc:postgresql://postgres:5432/artifactory
+      JF_SHARED_DATABASE_DRIVER: org.postgresql.Driver
+      JF_SHARED_NODE_ID: advisor-artifactory
+      JF_SHARED_NODE_NAME: advisor-artifactory
+      JF_ROUTER_ENTRYPOINTS_EXTERNALPORT: "8082"
+      JF_JFCONNECT_ENABLED: "false"
+    ports:
+      - "127.0.0.1:8082:8082"
+    volumes:
+      - artifactory_data:/var/opt/jfrog/artifactory
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  artifactory_data:

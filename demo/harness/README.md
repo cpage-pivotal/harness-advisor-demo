@@ -4,7 +4,7 @@ The app and scripts are stored here; create the Harness pipeline after publishin
 
 1. In Harness CI, create a GitHub connector with read access to this repository. Set the pipeline codebase to the `demo` branch.
 2. Add a **Build** stage on the **Local Runner (Docker)** infrastructure. Select the delegate/runner you already started, Linux / AMD64, and a Java 17 image such as `maven:3.9-eclipse-temurin-17`. Docker on an Apple Silicon host may run that image through AMD64 emulation.
-3. Add three Harness secrets and expose them to the Run step as environment variables: `BROADCOM_EMAIL`, `BROADCOM_REGISTRY_TOKEN`, and `GH_TOKEN`. The GitHub token needs permission to push a branch and create a pull request. For a dry run, omit `GH_TOKEN` and skip the publish command.
+3. Add three Harness secrets and expose them to the Run step as environment variables: `BROADCOM_EMAIL`, `BROADCOM_REGISTRY_TOKEN`, and `GH_TOKEN`. The GitHub token needs permission to push a branch and create a pull request. For a dry run, omit `GH_TOKEN` and skip the publish command. To route Maven through local Artifactory, also set `ARTIFACTORY_URL` to `http://host.docker.internal:8082/artifactory/spring-enterprise-remote`, set `ARTIFACTORY_USERNAME` to `admin`, and expose `ARTIFACTORY_PASSWORD` as a secret containing the generated password from `demo/artifactory/.env`.
 4. Make a pipeline named **Patch** with one Run step using the commands below. Make a second pipeline named **Upgrade** and change `patch` to `upgrade` in the last two lines. Run both against `demo`, merging the patch PR before running Upgrade. The suggested Maven image is Debian based; its package manager installs the GitHub CLI for PR creation.
 
 ```bash

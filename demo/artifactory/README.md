@@ -1,18 +1,28 @@
-# Optional Artifactory OSS mirror
+# Local Artifactory OSS Maven cache
 
-Artifactory OSS can proxy Maven repositories without a paid Artifactory license. Use JFrog's [official Docker Compose package for Artifactory OSS](https://docs.jfrog.com/installation/docs/docker) for a local installation. It is heavier than the Harness runner and may need several GB of memory. Use the `oss` package; JFrog Container Registry (JCR) does not support Maven repositories.
+This demo runs Artifactory OSS and PostgreSQL in Docker, then creates a Maven remote repository named `spring-enterprise-remote`. It points to Broadcom's Spring Enterprise repository and caches artifacts as they are requested. This is an on-demand cache, not a complete copy of the upstream repository.
 
-In Artifactory, create a **Maven remote** repository called `spring-enterprise-remote`:
+## Start and configure
 
-| Setting | Value |
-| --- | --- |
-| URL | `https://packages.broadcom.com/artifactory/spring-enterprise` |
-| Upstream username | Broadcom account email |
-| Upstream password | Broadcom registry token |
+From the demo repository root:
 
-These credentials live in Artifactory's configuration, not in this repository. A remote repository caches artifacts on first request; it does not copy the complete Broadcom repository. Artifactory's [Maven repository guide](https://docs.jfrog.com/artifactory/docs/maven-repositories) describes remote and virtual repositories.
+```bash
+bash demo/artifactory/start-local.sh
+ruby demo/artifactory/configure-remote.rb
+ruby demo/artifactory/verify-cache.rb
+```
 
-To route the app's Spring Enterprise Maven requests through your local Artifactory, add a Maven mirror to the same `~/.m2/settings.xml` that has the `spring-enterprise-subscription` server:
+Artifactory may take a minute or two to start before `configure-remote.rb` succeeds. Open `http://localhost:8082/ui/` to see the repository. The local admin username is `admin`; its generated password is in the ignored, private `demo/artifactory/.env` file. The repository data and PostgreSQL data live in Docker volumes and survive a container restart.
+
+`configure-remote.rb` reads the Broadcom registry token from the ignored `vars.yaml` at the repo root. It reads the Broadcom username from the `spring-enterprise-subscription` server in your existing `~/.m2/settings.xml`, or from `BROADCOM_EMAIL`. It changes the default local admin password, backs up Artifactory's configuration under the ignored `demo/artifactory/downloads/` directory, and configures the remote with Bearer authentication. Re-run it after rotating your Broadcom token.
+
+JFrog's individual [Create Repository API](https://docs.jfrog.com/artifactory/reference/createrepository) is Pro-only on this OSS installation. The script uses JFrog's [self-hosted YAML configuration endpoint](https://docs.jfrog.com/administration/reference/patchsystemconfiguration), which works on OSS. It applies only the `spring-enterprise-remote` entry. The source syntax follows JFrog's [repository YAML reference](https://docs.jfrog.com/installation/docs/repositories-configurations-in-artifactory-yaml).
+
+`verify-cache.rb` fetches the Spring Boot 3.4.17.1 parent POM through the remote and compares it to the `spring-enterprise-remote-cache` copy. A matching SHA-256 demonstrates that Artifactory fetched and stored the artifact.
+
+## Point Maven at the cache
+
+Add a mirror to your Maven `settings.xml`, keeping the existing `spring-enterprise-subscription` server for Application Advisor itself:
 
 ```xml
 <mirrors>
@@ -24,6 +34,15 @@ To route the app's Spring Enterprise Maven requests through your local Artifacto
 </mirrors>
 ```
 
-If the Maven build runs in a Docker container on macOS, replace `localhost` with `host.docker.internal`. If Artifactory requires client authentication, add a Maven `<server>` whose ID is `spring-enterprise-remote` with the Artifactory credentials. Keep the Broadcom server entry too, since Application Advisor uses that identity directly.
+The mirror requires a matching Maven `<server>` with ID `spring-enterprise-remote`, username `admin`, and the generated Artifactory admin password. Put it alongside the Broadcom server in your private settings file. In a Harness Docker Run step, use `host.docker.internal` in place of `localhost` if that host name reaches your Mac's Artifactory port.
 
-Show the mirror working by requesting an enterprise artifact in a build, then opening the `spring-enterprise-remote-cache` repository in Artifactory. The Artifactory UI should show the cached artifact. A regular PetClinic build may resolve only public artifacts and leave this cache empty until Advisor applies an enterprise patch.
+Artifactory is bound to the host's loopback address on port 8082. The Docker image is pinned to 7.161.26, which includes JFrog's [7.161.20 security fix](https://docs.jfrog.com/releases/docs/jfrog-security-advisories). `JF_JFCONNECT_ENABLED=false` avoids a [known OSS UI startup hang](https://github.com/jfrog/charts/issues/2233).
+
+## Stop and restart
+
+```bash
+docker compose --env-file demo/artifactory/.env -f demo/artifactory/compose.yaml down
+bash demo/artifactory/start-local.sh
+```
+
+The command above preserves the Docker volumes and cached artifacts. The Git demo reset does not change Artifactory's state.
