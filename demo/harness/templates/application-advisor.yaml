@@ -18,7 +18,7 @@
 template:
   name: Application Advisor
   identifier: application_advisor
-  versionLabel: v1
+  versionLabel: v4
   type: StepGroup
   description: Apply Spring Application Advisor patches or the next upgrade step to a Maven project and open a GitHub pull request.
   tags:
@@ -99,9 +99,10 @@ template:
                   advisor patch apply
                   ;;
                 upgrade)
-                  # Exit 50 means some upgrades are blocked; the plan still has steps to apply.
+                  # Exit 50 means some upgrades are blocked. Both commands return it even when
+                  # the plan has steps and apply succeeds; the CHANGED check below decides.
                   advisor upgrade-plan get || [[ $? -eq 50 ]]
-                  advisor upgrade-plan apply
+                  advisor upgrade-plan apply || [[ $? -eq 50 ]]
                   ;;
                 *)
                   echo "ADVISOR_OPERATION must be patch or upgrade." >&2
@@ -109,13 +110,16 @@ template:
                   ;;
               esac
 
-              # The advisor writes working files to .advisor/ and target/; they are never committed.
-              if [[ -z "$(git status --porcelain -- . ':(exclude).advisor' ':(exclude)target')" ]]; then
+              # Never commit working files: the advisor writes .advisor/ and target/, and the Harness
+              # clone step writes plugin-build-tool.json. Exclude them in this clone only (pathspec
+              # excludes make `git add` fail when the repo already ignores them).
+              mkdir -p .git/info && printf '.advisor/\ntarget/\nplugin-build-tool.json\n' >> .git/info/exclude
+              if [[ -z "$(git status --porcelain)" ]]; then
                 echo "Application Advisor made no changes."
                 exit 0
               fi
               CHANGED=true
-              git status --short -- . ':(exclude).advisor' ':(exclude)target'
+              git status --short
 
               if [[ -n "${VERIFY_COMMAND:-}" ]]; then
                 bash -c "$VERIFY_COMMAND"
@@ -154,7 +158,10 @@ template:
               git config user.name "Application Advisor"
               git config user.email "application-advisor@users.noreply.github.com"
               git switch -c "$branch"
-              git add -A -- . ':(exclude).advisor' ':(exclude)target'
+              mkdir -p .git/info
+              grep -qxF 'plugin-build-tool.json' .git/info/exclude 2>/dev/null \
+                || printf '.advisor/\ntarget/\nplugin-build-tool.json\n' >> .git/info/exclude
+              git add -A
               git commit -q -m "Application Advisor: ${ADVISOR_OPERATION}"
               auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
               git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
