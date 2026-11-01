@@ -54,6 +54,15 @@ vars.yaml
 .advisor/
 demo/artifactory/data/
 demo/artifactory/downloads/
+# Maven settings hold Broadcom credentials; the advisor CLI is a commercial download
+settings.xml
+.m2/
+application-advisor-cli-*.tar
+/advisor
+*.log
+
+### macOS ###
+.DS_Store
 
 ### CSS ###
 _site/
