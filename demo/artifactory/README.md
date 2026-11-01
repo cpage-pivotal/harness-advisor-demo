@@ -22,7 +22,7 @@ JFrog's individual [Create Repository API](https://docs.jfrog.com/artifactory/re
 
 ## Point Maven at the cache
 
-Add a mirror to your Maven `settings.xml`, keeping the existing `spring-enterprise-subscription` server for Application Advisor itself:
+Add a mirror to your Maven `settings.xml`. Application Advisor follows Maven mirrors, so with this mirror in place neither Maven nor the advisor CLI needs the `spring-enterprise-subscription` Broadcom server entry; a settings file with only the mirror and its server has been verified to run `build-config get`, `upgrade-plan get`, `patch apply`, and `upgrade-plan apply`:
 
 ```xml
 <mirrors>
@@ -34,7 +34,9 @@ Add a mirror to your Maven `settings.xml`, keeping the existing `spring-enterpri
 </mirrors>
 ```
 
-The mirror requires a matching Maven `<server>` with ID `spring-enterprise-remote`, username `admin`, and the generated Artifactory admin password. Put it alongside the Broadcom server in your private settings file. In a Harness Docker Run step, use `host.docker.internal` in place of `localhost` if that host name reaches your Mac's Artifactory port.
+The mirror requires a matching Maven `<server>` with ID `spring-enterprise-remote`, username `admin`, and the generated Artifactory admin password. In a Harness Docker Run step, `demo/scripts/configure-maven.sh` writes exactly this from `ARTIFACTORY_URL` and `ARTIFACTORY_PASSWORD`; use `host.docker.internal` in place of `localhost`.
+
+The advisor CLI tarball also downloads through the remote, at `com/vmware/tanzu/spring/application-advisor-cli-<variant>/<version>/`. Artifactory OSS cannot answer latest-version searches, and Broadcom publishes no `maven-metadata.xml` for the CLI, so `demo/scripts/install-advisor.sh` pins the version.
 
 Artifactory is bound to the host's loopback address on port 8082. The Docker image is pinned to 7.161.26, which includes JFrog's [7.161.20 security fix](https://docs.jfrog.com/releases/docs/jfrog-security-advisories). `JF_JFCONNECT_ENABLED=false` avoids a [known OSS UI startup hang](https://github.com/jfrog/charts/issues/2233).
 

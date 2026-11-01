@@ -25,8 +25,8 @@ The application is based on the local Spring PetClinic `boot-3.4.2-baseline` at 
    git push origin demo-baseline
    ```
 
-2. Have a Broadcom Spring Enterprise entitlement and registry token available. Application Advisor and enterprise artifacts require it. Store `BROADCOM_EMAIL`, `BROADCOM_REGISTRY_TOKEN`, and a GitHub `GH_TOKEN` as Harness secrets. Do not commit the values.
-3. In Harness CI, connect this GitHub repository and follow [the Harness runbook](demo/harness/README.md). Use the local Docker runner as build infrastructure. Harness Free supports the local runner; the delegate and runner process must be online when the pipeline starts.
+2. Have a Broadcom Spring Enterprise entitlement and registry token available. Enterprise artifacts and the advisor CLI download require it. Configure the token in the local Artifactory remote ([runbook](demo/artifactory/README.md)), then store `ARTIFACTORY_PASSWORD` and a GitHub `GH_TOKEN` as Harness secrets. Harness then needs no Broadcom credentials. Do not commit the values.
+3. In Harness CI, connect this GitHub repository and follow [the Harness runbook](demo/harness/README.md). Use the local Docker runner as build infrastructure, on Linux / AMD64 (there is no Linux ARM64 build of the advisor CLI). Harness Free supports the local runner; the delegate and runner process must be online when the pipeline starts.
 4. Run the **Patch** pipeline against `demo`. Review its PR, merge it, and show the build result.
 5. Run the **Upgrade** pipeline against `demo`. Review the plan and PR, then merge it. An upgrade run applies one plan step; repeat for another step if useful.
 
@@ -41,7 +41,7 @@ bash demo/scripts/run-advisor.sh plan
 bash demo/scripts/run-advisor.sh patch
 ```
 
-`demo/scripts/configure-maven.sh` can create Maven settings in a fresh home directory (such as a CI container) from `BROADCOM_EMAIL` and `BROADCOM_REGISTRY_TOKEN`. It refuses to overwrite existing settings.
+`demo/scripts/configure-maven.sh` can create Maven settings in a fresh home directory (such as a CI container), either from `ARTIFACTORY_URL` and `ARTIFACTORY_PASSWORD` or from `BROADCOM_EMAIL` and `BROADCOM_REGISTRY_TOKEN`. It refuses to overwrite existing settings. `install-advisor.sh` uses the same variables and installs a pinned CLI version (`ADVISOR_VERSION`, default `1.7.1`).
 
 ## Reset between takes
 
@@ -56,9 +56,9 @@ git push origin demo
 
 The reset script restores all tracked files from `demo-baseline` and makes a new commit. It preserves the patch and upgrade PR history for the customer to inspect. Close any old unmerged demo PRs before the next run, then start new pipelines against `demo`. Keep `main` and the `demo-baseline` tag unchanged.
 
-## Optional Artifactory chapter
+## Artifactory mirror
 
-If you want to show a private repository mirror, follow [the Artifactory OSS runbook](demo/artifactory/README.md). It uses a Maven remote cache for Broadcom's Spring Enterprise repository. The repository remains upstream at Broadcom, while Artifactory caches requested artifacts locally. The Maven mirror is optional; the patch and upgrade story works directly against Broadcom.
+The Harness pipelines use [the Artifactory OSS runbook](demo/artifactory/README.md) setup: a Maven remote cache for Broadcom's Spring Enterprise repository. The repository remains upstream at Broadcom, while Artifactory caches requested artifacts, including the advisor CLI, locally. The mirror keeps the Broadcom token out of CI. It is optional; the patch and upgrade story also works directly against Broadcom by supplying `BROADCOM_EMAIL` and `BROADCOM_REGISTRY_TOKEN` instead.
 
 ## Limits
 

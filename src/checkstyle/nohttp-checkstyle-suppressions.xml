@@ -8,4 +8,7 @@
 	<suppress files="build[\\/].*" checks=".*"/>
 	<suppress files="target[\\/].*" checks=".*"/>
 	<suppress files=".+\.(jar|git|ico|p12|gif|jks|jpg|svg|log)" checks="NoHttp"/>
+	<!-- Demo tooling and docs target plain-HTTP local endpoints such as host.docker.internal:8082 -->
+	<suppress files="[\\/]demo[\\/].*" checks="NoHttp"/>
+	<suppress files="[\\/]\.playwright-cli[\\/].*" checks="NoHttp"/>
 </suppressions>
