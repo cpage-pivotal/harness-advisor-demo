@@ -39,7 +39,7 @@ pipeline:
                   identifier: application_advisor
                   template:
                     templateRef: account.application_advisor
-                    versionLabel: v4
+                    versionLabel: v5
                     templateInputs:
                       steps:
                         - step:
