@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.4.2</version>
+    <version>3.4.18</version>
     <relativePath></relativePath>
   </parent>
 
@@ -16,6 +16,7 @@
   <name>petclinic</name>
 
   <properties>
+    <postgresql.version>42.7.14</postgresql.version>
 
     <!-- Generic properties -->
     <java.version>17</java.version>
@@ -24,13 +25,10 @@
     <!-- Important for reproducible builds. Update using e.g. ./mvnw versions:set
         -DnewVersion=... -->
     <project.build.outputTimestamp>2024-11-28T14:37:52Z</project.build.outputTimestamp>
-
-    <!-- Web dependencies -->
-    <webjars-locator.version>1.0.1</webjars-locator.version>
-    <webjars-bootstrap.version>5.3.3</webjars-bootstrap.version>
+    <webjars-bootstrap.version>5.3.8</webjars-bootstrap.version>
     <webjars-font-awesome.version>4.7.0</webjars-font-awesome.version>
 
-    <checkstyle.version>10.20.1</checkstyle.version>
+    <checkstyle.version>10.20.2</checkstyle.version>
     <jacoco.version>0.8.12</jacoco.version>
     <libsass.version>0.2.29</libsass.version>
     <lifecycle-mapping>1.0.0</lifecycle-mapping>
@@ -39,6 +37,90 @@
     <spring-format.version>0.0.43</spring-format.version>
 
   </properties>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-annotations</artifactId>
+        <version>2.18.12</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
+        <version>2.18.12</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.18.12</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jdk8</artifactId>
+        <version>2.18.12</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jsr310</artifactId>
+        <version>2.18.12</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-parameter-names</artifactId>
+        <version>2.18.12</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-core</artifactId>
+        <version>10.1.61</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-el</artifactId>
+        <version>10.1.61</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tomcat.embed</groupId>
+        <artifactId>tomcat-embed-websocket</artifactId>
+        <version>10.1.61</version>
+      </dependency>
+      <dependency>
+        <groupId>org.aspectj</groupId>
+        <artifactId>aspectjweaver</artifactId>
+        <version>1.9.26</version>
+      </dependency>
+      <dependency>
+        <groupId>org.attoparser</groupId>
+        <artifactId>attoparser</artifactId>
+        <version>2.0.9.RELEASE</version>
+      </dependency>
+      <dependency>
+        <groupId>org.hibernate.orm</groupId>
+        <artifactId>hibernate-core</artifactId>
+        <version>6.6.59.Final</version>
+      </dependency>
+      <dependency>
+        <groupId>org.hibernate.validator</groupId>
+        <artifactId>hibernate-validator</artifactId>
+        <version>8.0.6.Final</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jspecify</groupId>
+        <artifactId>jspecify</artifactId>
+        <version>1.0.1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>jul-to-slf4j</artifactId>
+        <version>2.0.20</version>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>2.0.20</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <!-- Spring and Spring Boot dependencies -->
@@ -108,7 +190,6 @@
     <dependency>
       <groupId>org.webjars</groupId>
       <artifactId>webjars-locator-lite</artifactId>
-      <version>${webjars-locator.version}</version>
     </dependency>
     <dependency>
       <groupId>org.webjars.npm</groupId>
