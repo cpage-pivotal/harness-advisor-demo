@@ -4,10 +4,12 @@ The patch and upgrade logic is packaged as a reusable **Harness step group templ
 
 ## The template
 
-`account.application_advisor`, version `v4`, is a CI step group with two Run steps:
+`account.application_advisor`, version `v5`, is a CI step group with two Run steps:
 
 1. **Run Application Advisor**: writes Maven settings that mirror Broadcom's Spring Enterprise repository through a repository manager, downloads the advisor CLI through the same remote, runs `patch apply` or the next `upgrade-plan apply` step, then runs a verification command. It exports `CHANGED` and `OPERATION`.
 2. **Open pull request**: runs only when `CHANGED` is `true`. It commits the changes to an `advisor-<operation>-<timestamp>` branch, pushes it, and opens a pull request against the branch the pipeline built, through the GitHub REST API. It exports `PR_URL`.
+
+The pull request explains itself. An upgrade PR is titled after its Spring Boot step (for example, `upgrade spring-boot from 3.5.x to 4.0.x`) and its description holds the full upgrade plan the advisor computed before the change, including blocked upgrades. A patch PR lists every dependency change in a collapsible section. Both state the verification command that passed and link to the Harness execution. The first step writes the title and description under `.git/`, which the second step reads and which is never committed.
 
 The template is self-contained: the target repository needs no scripts. It supports Maven projects on GitHub. The image needs a JDK 17+, `git`, and `curl`; `maven:3.9-eclipse-temurin-17` has all three, so the steps install nothing. Working files are never committed: the advisor's `.advisor/` and `target/`, and the `plugin-build-tool.json` that Harness's clone step writes.
 
@@ -56,7 +58,7 @@ curl -fsS -H "Authorization: Bearer $BROADCOM_REGISTRY_TOKEN" \
   'https://packages.broadcom.com/artifactory/api/search/latestVersion?g=com.vmware.tanzu.spring&a=application-advisor-cli-linux&repos=spring-enterprise'
 ```
 
-`advisor upgrade-plan get` and `advisor upgrade-plan apply` both exit with code 50 when some upgrades are blocked, even when the plan has steps and `apply` succeeds. The template treats 50 as success and relies on its changed-files check instead. Version history: v1 handled exit 50 only for `get`; v2 also handles it for `apply`; v3 keeps `.advisor/` and `target/` out of the commit through `.git/info/exclude`, because pathspec excludes make `git add` fail in repositories that already ignore those paths; v4 also excludes `plugin-build-tool.json`, a metrics file the Harness clone step writes to the workspace root.
+`advisor upgrade-plan get` and `advisor upgrade-plan apply` both exit with code 50 when some upgrades are blocked, even when the plan has steps and `apply` succeeds. The template treats 50 as success and relies on its changed-files check instead. Version history: v1 handled exit 50 only for `get`; v2 also handles it for `apply`; v3 keeps `.advisor/` and `target/` out of the commit through `.git/info/exclude`, because pathspec excludes make `git add` fail in repositories that already ignore those paths; v4 also excludes `plugin-build-tool.json`, a metrics file the Harness clone step writes to the workspace root. v5 writes a descriptive PR title and description: the upgrade plan for upgrade runs, the dependency changes for patch runs, the verification result, and a link to the Harness execution.
 
 Harness clones a fresh workspace for each execution. The Maven settings file and the advisor CLI live inside the disposable step container, outside the workspace; the CLI's commercial bytes are never checked into Git. [Harness CI pipeline setup](https://developer.harness.io/docs/continuous-integration/use-ci/prep-ci-pipeline-components/) explains the Build stage and Run step UI.
 
