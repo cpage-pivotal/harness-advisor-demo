@@ -1,6 +1,6 @@
 # Application Advisor + Harness CI demo
 
-This repository is a repeatable customer demo using Spring PetClinic on **Spring Boot 3.4.2 / Java 17**. The story has two parts: apply security and bug-fix patches within the current release line, then run an Application Advisor upgrade plan to move to a newer line. Harness CI runs the commands on a local Docker runner and opens GitHub pull requests for review.
+This repository is a repeatable customer demo using Spring PetClinic on **Spring Boot 3.4.2 / Java 17**. The story has two parts: apply security and bug-fix patches within the current release line, then run an Application Advisor upgrade plan to move to a newer line. Harness CI runs them on a local Docker runner through a reusable step group template, and opens GitHub pull requests for review.
 
 The application is based on the local Spring PetClinic `boot-3.4.2-baseline` at commit `15a06c1d05d78558f7c306cbc95f9190a9d9f97e`. PetClinic's original documentation is in [PETCLINIC.md](PETCLINIC.md), and its Apache 2.0 license is in [LICENSE.txt](LICENSE.txt).
 
@@ -11,7 +11,7 @@ The application is based on the local Spring PetClinic `boot-3.4.2-baseline` at 
 | `pom.xml`, `src/`, `mvnw` | Maven PetClinic application and Spring Enterprise repository declaration |
 | `.advisor.yml` | Enables Application Advisor patch settings |
 | `demo/scripts/` | Install CLI, configure disposable Maven credentials, run patch/upgrade, open PR, and reset |
-| `demo/harness/README.md` | Harness pipeline setup with the local Docker runner |
+| `demo/harness/` | Reusable Application Advisor step group template, the demo Patch/Upgrade pipelines, and the setup runbook |
 | `demo/artifactory/README.md` | Optional free Artifactory OSS Maven remote cache |
 
 ## First run
@@ -26,7 +26,7 @@ The application is based on the local Spring PetClinic `boot-3.4.2-baseline` at 
    ```
 
 2. Have a Broadcom Spring Enterprise entitlement and registry token available. Enterprise artifacts and the advisor CLI download require it. Configure the token in the local Artifactory remote ([runbook](demo/artifactory/README.md)), then store `ARTIFACTORY_PASSWORD` and a GitHub `GH_TOKEN` as Harness secrets. Harness then needs no Broadcom credentials. Do not commit the values.
-3. In Harness CI, connect this GitHub repository and follow [the Harness runbook](demo/harness/README.md). Use the local Docker runner as build infrastructure, on Linux / AMD64 (there is no Linux ARM64 build of the advisor CLI). Harness Free supports the local runner; the delegate and runner process must be online when the pipeline starts.
+3. In Harness CI, connect this GitHub repository and follow [the Harness runbook](demo/harness/README.md). Use the local Docker runner as build infrastructure; on an Apple Silicon Mac the stage platform is macOS / Arm64 and the step image is pinned to AMD64, as the runbook explains. Harness Free supports the local runner; the delegate and runner process must be online when the pipeline starts.
 4. Run the **Patch** pipeline against `demo`. Review its PR, merge it, and show the build result.
 5. Run the **Upgrade** pipeline against `demo`. Review the plan and PR, then merge it. An upgrade run applies one plan step; repeat for another step if useful.
 
@@ -58,8 +58,8 @@ The reset script restores all tracked files from `demo-baseline` and makes a new
 
 ## Artifactory mirror
 
-The Harness pipelines use [the Artifactory OSS runbook](demo/artifactory/README.md) setup: a Maven remote cache for Broadcom's Spring Enterprise repository. The repository remains upstream at Broadcom, while Artifactory caches requested artifacts, including the advisor CLI, locally. The mirror keeps the Broadcom token out of CI. It is optional; the patch and upgrade story also works directly against Broadcom by supplying `BROADCOM_EMAIL` and `BROADCOM_REGISTRY_TOKEN` instead.
+The Harness pipelines use [the Artifactory OSS runbook](demo/artifactory/README.md) setup: a Maven remote cache for Broadcom's Spring Enterprise repository. The repository remains upstream at Broadcom, while Artifactory caches requested artifacts, including the advisor CLI, locally. The mirror keeps the Broadcom token out of CI, and the Harness template requires one. The local rehearsal scripts can also go directly to Broadcom with `BROADCOM_EMAIL` and `BROADCOM_REGISTRY_TOKEN`.
 
 ## Limits
 
-The repo is ready to publish and the scripts are local assets. The Harness connector, pipeline IDs, runner binding, and secrets are account-specific, so set those up in your Harness account after publishing. Application Advisor requires a valid Broadcom entitlement; without it, the app can still be built, but the patch and upgrade operations cannot run.
+The template and pipeline YAML live in `demo/harness/`; the scripts are local rehearsal assets. The Harness connector, pipeline IDs, runner binding, and secrets are account-specific, so set those up in your Harness account after publishing. Application Advisor requires a valid Broadcom entitlement; without it, the app can still be built, but the patch and upgrade operations cannot run.

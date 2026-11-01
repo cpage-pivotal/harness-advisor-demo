@@ -1,0 +1,65 @@
+# Demo pipeline that consumes the account-level Application Advisor step group template
+# (demo/harness/templates/application-advisor.yaml). Project: default_project.
+pipeline:
+  name: Upgrade
+  identifier: Upgrade
+  projectIdentifier: default_project
+  orgIdentifier: default
+  description: Apply the next Application Advisor upgrade-plan step to the demo branch and open a PR
+  tags:
+    demo: application-advisor
+  properties:
+    ci:
+      codebase:
+        connectorRef: harness_advisor_demo
+        build:
+          type: branch
+          spec:
+            branch: demo
+  stages:
+    - stage:
+        name: Application Advisor Upgrade
+        identifier: advisor_upgrade
+        type: CI
+        spec:
+          cloneCodebase: true
+          # Local runner on Apple Silicon: the delegate is tagged macos-arm64. Steps run in
+          # Docker; the image below is pinned to its linux/amd64 digest so the advisor CLI
+          # (Linux AMD64 only) runs under emulation.
+          platform:
+            os: MacOS
+            arch: Arm64
+          runtime:
+            type: Docker
+            spec: {}
+          execution:
+            steps:
+              - stepGroup:
+                  name: Application Advisor
+                  identifier: application_advisor
+                  template:
+                    templateRef: account.application_advisor
+                    versionLabel: v1
+                    templateInputs:
+                      steps:
+                        - step:
+                            identifier: run_advisor
+                            type: Run
+                            spec:
+                              connectorRef: account.harnessImage
+                              image: maven:3.9-eclipse-temurin-17@sha256:c97d0fa42bed8c381518d76d7ca541ff5c6427b21fa93ac6fc4bd68ffb9a258d
+                              envVariables:
+                                ADVISOR_OPERATION: upgrade
+                                ADVISOR_VERSION: 1.7.1
+                                MAVEN_MIRROR_URL: http://host.docker.internal:8082/artifactory/spring-enterprise-remote
+                                MAVEN_MIRROR_USERNAME: admin
+                                MAVEN_MIRROR_PASSWORD: <+secrets.getValue("ARTIFACTORY_PASSWORD")>
+                                VERIFY_COMMAND: ./mvnw -B test
+                        - step:
+                            identifier: open_pull_request
+                            type: Run
+                            spec:
+                              connectorRef: account.harnessImage
+                              image: maven:3.9-eclipse-temurin-17@sha256:c97d0fa42bed8c381518d76d7ca541ff5c6427b21fa93ac6fc4bd68ffb9a258d
+                              envVariables:
+                                GH_TOKEN: <+secrets.getValue("GH_TOKEN")>

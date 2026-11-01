@@ -1,0 +1,170 @@
+# Harness CI step group template: Application Advisor patch/upgrade + GitHub PR.
+#
+# Add it to the CI stage of an existing pipeline (Add Step -> Use template). The stage
+# must clone a GitHub codebase and run Maven builds. Scope: account. This file is the
+# source of truth; publish a change as a new version label (Templates -> application_advisor
+# -> New Version, paste the YAML) and move pipelines to it when ready.
+#
+# Inputs (set when adding the template to a stage):
+#   - image: a JDK 17+ image with git and curl. The advisor CLI exists for Linux AMD64 only,
+#     so the step container must be AMD64. On Apple Silicon local runners, pin the AMD64
+#     digest of a multi-arch image so Docker runs it under emulation.
+#   - ADVISOR_OPERATION: patch or upgrade.
+#   - MAVEN_MIRROR_URL / _USERNAME / _PASSWORD: a repository manager remote that proxies
+#     Broadcom's Spring Enterprise repository. No Broadcom credentials are needed in CI.
+#   - VERIFY_COMMAND: runs after the advisor changes the build; empty to skip.
+#   - GH_TOKEN: a GitHub token that can push a branch and open a pull request.
+# Outputs: run_advisor -> CHANGED, OPERATION; open_pull_request -> PR_URL.
+template:
+  name: Application Advisor
+  identifier: application_advisor
+  versionLabel: v1
+  type: StepGroup
+  description: Apply Spring Application Advisor patches or the next upgrade step to a Maven project and open a GitHub pull request.
+  tags:
+    spring: ""
+    application-advisor: ""
+  spec:
+    stageType: CI
+    steps:
+      - step:
+          type: Run
+          name: Run Application Advisor
+          identifier: run_advisor
+          timeout: 45m
+          spec:
+            connectorRef: <+input>
+            image: <+input>
+            shell: Bash
+            envVariables:
+              ADVISOR_OPERATION: <+input>.allowedValues(patch,upgrade)
+              ADVISOR_VERSION: <+input>.default(1.7.1)
+              MAVEN_MIRROR_URL: <+input>
+              MAVEN_MIRROR_USERNAME: <+input>
+              MAVEN_MIRROR_PASSWORD: <+input>
+              VERIFY_COMMAND: <+input>.default(./mvnw -B test)
+            outputVariables:
+              - name: CHANGED
+              - name: OPERATION
+            command: |-
+              set -euo pipefail
+              CHANGED=false
+              OPERATION="${ADVISOR_OPERATION}"
+
+              if [[ "$(uname -m)" != x86_64 ]]; then
+                echo "The advisor CLI is published for Linux AMD64 only; this container is $(uname -m)." >&2
+                echo "Use an AMD64 image (on Apple Silicon, pin the image's linux/amd64 digest)." >&2
+                exit 1
+              fi
+
+              # Maven: resolve Spring Enterprise artifacts through the repository manager.
+              settings="$HOME/.m2/settings.xml"
+              if [[ -e "$settings" ]]; then
+                echo "$settings already exists in this image; refusing to overwrite it." >&2
+                exit 1
+              fi
+              mkdir -p "$HOME/.m2"
+              (umask 077; cat > "$settings" <<EOF
+              <settings>
+                <servers>
+                  <server>
+                    <id>spring-enterprise-mirror</id>
+                    <username>${MAVEN_MIRROR_USERNAME}</username>
+                    <password>${MAVEN_MIRROR_PASSWORD}</password>
+                  </server>
+                </servers>
+                <mirrors>
+                  <mirror>
+                    <id>spring-enterprise-mirror</id>
+                    <mirrorOf>spring-enterprise-subscription</mirrorOf>
+                    <url>${MAVEN_MIRROR_URL}</url>
+                  </mirror>
+                </mirrors>
+              </settings>
+              EOF
+              )
+
+              # Advisor CLI, downloaded through the same remote and kept outside the workspace.
+              cli_dir=/tmp/advisor-cli
+              mkdir -p "$cli_dir"
+              curl -fsSL -u "${MAVEN_MIRROR_USERNAME}:${MAVEN_MIRROR_PASSWORD}" -o /tmp/advisor-cli.tar \
+                "${MAVEN_MIRROR_URL%/}/com/vmware/tanzu/spring/application-advisor-cli-linux/${ADVISOR_VERSION}/application-advisor-cli-linux-${ADVISOR_VERSION}.tar"
+              tar -xf /tmp/advisor-cli.tar -C "$cli_dir" --strip-components=1 --exclude=./META-INF
+              export PATH="$cli_dir:$PATH"
+              advisor --version
+
+              advisor build-config get
+              case "$ADVISOR_OPERATION" in
+                patch)
+                  advisor patch apply
+                  ;;
+                upgrade)
+                  # Exit 50 means some upgrades are blocked; the plan still has steps to apply.
+                  advisor upgrade-plan get || [[ $? -eq 50 ]]
+                  advisor upgrade-plan apply
+                  ;;
+                *)
+                  echo "ADVISOR_OPERATION must be patch or upgrade." >&2
+                  exit 2
+                  ;;
+              esac
+
+              # The advisor writes working files to .advisor/ and target/; they are never committed.
+              if [[ -z "$(git status --porcelain -- . ':(exclude).advisor' ':(exclude)target')" ]]; then
+                echo "Application Advisor made no changes."
+                exit 0
+              fi
+              CHANGED=true
+              git status --short -- . ':(exclude).advisor' ':(exclude)target'
+
+              if [[ -n "${VERIFY_COMMAND:-}" ]]; then
+                bash -c "$VERIFY_COMMAND"
+              fi
+      - step:
+          type: Run
+          name: Open pull request
+          identifier: open_pull_request
+          timeout: 10m
+          when:
+            stageStatus: Success
+            condition: <+stepGroup.steps.run_advisor.output.outputVariables.CHANGED> == "true"
+          spec:
+            connectorRef: <+input>
+            image: <+input>
+            shell: Bash
+            envVariables:
+              GH_TOKEN: <+input>
+              ADVISOR_OPERATION: <+stepGroup.steps.run_advisor.output.outputVariables.OPERATION>
+              BASE_BRANCH: <+codebase.branch>
+            outputVariables:
+              - name: PR_URL
+            command: |-
+              set -euo pipefail
+              PR_URL=""
+              : "${GH_TOKEN:?Set GH_TOKEN to a GitHub token that can push and open pull requests}"
+              : "${BASE_BRANCH:?The pipeline must build a branch of a GitHub codebase}"
+
+              repo="$(git remote get-url origin | sed -E 's#^(https://|git@)github\.com[:/]##; s#\.git$##')"
+              if [[ ! "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+                echo "The codebase remote is not a github.com repository." >&2
+                exit 1
+              fi
+
+              branch="advisor-${ADVISOR_OPERATION}-$(date -u +%Y%m%d-%H%M%S)"
+              git config user.name "Application Advisor"
+              git config user.email "application-advisor@users.noreply.github.com"
+              git switch -c "$branch"
+              git add -A -- . ':(exclude).advisor' ':(exclude)target'
+              git commit -q -m "Application Advisor: ${ADVISOR_OPERATION}"
+              auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+              git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
+                push -q "https://github.com/${repo}.git" "HEAD:refs/heads/${branch}"
+
+              body="Generated by the Application Advisor step group in Harness pipeline <+pipeline.name>, execution <+pipeline.executionId>. Review the dependency changes and the verification result before merging."
+              response="$(curl -fsS -X POST \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${repo}/pulls" \
+                -d "{\"title\":\"Application Advisor: ${ADVISOR_OPERATION}\",\"head\":\"${branch}\",\"base\":\"${BASE_BRANCH}\",\"body\":\"${body}\"}")"
+              PR_URL="$(printf '%s' "$response" | grep -m1 -o '"html_url": *"[^"]*/pull/[0-9]*"' | sed -E 's/.*"(https[^"]*)"/\1/')"
+              echo "Opened pull request: ${PR_URL}"
