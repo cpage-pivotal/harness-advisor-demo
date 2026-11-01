@@ -29,7 +29,8 @@ case "${1:-}" in
   upgrade)
     advisor build-config get
     show_plan
-    advisor upgrade-plan apply
+    # apply also exits 50 when some upgrades stay blocked, even after applying a step.
+    advisor upgrade-plan apply || [[ $? -eq 50 ]]
     ;;
   *)
     echo "Usage: $0 {patch|plan|upgrade}" >&2
