@@ -1,8 +1,11 @@
 #!/usr/bin/env ruby
 require 'digest'
 require 'net/http'
+require 'uri'
 
 here = File.expand_path(__dir__)
+# ARTIFACTORY_URL selects the instance (default http://localhost:8082).
+BASE_URL = URI(ENV.fetch('ARTIFACTORY_URL', 'http://localhost:8082').chomp('/'))
 env = File.readlines(File.join(here, '.env')).each_with_object({}) do |line, values|
   key, value = line.strip.split('=', 2)
   values[key] = value if key && value
@@ -14,7 +17,7 @@ artifact = '/org/springframework/boot/spring-boot-starter-parent/3.4.17.1/' \
 def fetch(repository, artifact, password)
   request = Net::HTTP::Get.new("/artifactory/#{repository}#{artifact}")
   request.basic_auth('admin', password)
-  Net::HTTP.start('localhost', 8082, read_timeout: 60) { |http| http.request(request) }
+  Net::HTTP.start(BASE_URL.host, BASE_URL.port, read_timeout: 60) { |http| http.request(request) }
 end
 
 remote = fetch('spring-enterprise-remote', artifact, password)

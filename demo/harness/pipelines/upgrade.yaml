@@ -23,12 +23,11 @@ pipeline:
         type: CI
         spec:
           cloneCodebase: true
-          # Local runner on Apple Silicon: the delegate is tagged macos-arm64. Steps run in
-          # Docker; the image below is pinned to its linux/amd64 digest so the advisor CLI
-          # (Linux AMD64 only) runs under emulation.
+          # Local Docker runner on a Linux AMD64 host (the delegate is tagged linux-amd64).
+          # The advisor CLI is published for Linux AMD64 only, so it runs natively here.
           platform:
-            os: MacOS
-            arch: Arm64
+            os: Linux
+            arch: Amd64
           runtime:
             type: Docker
             spec: {}
@@ -39,7 +38,7 @@ pipeline:
                   identifier: application_advisor
                   template:
                     templateRef: account.application_advisor
-                    versionLabel: v5
+                    versionLabel: v6
                     templateInputs:
                       steps:
                         - step:
@@ -47,19 +46,21 @@ pipeline:
                             type: Run
                             spec:
                               connectorRef: account.harnessImage
-                              image: maven:3.9-eclipse-temurin-17@sha256:c97d0fa42bed8c381518d76d7ca541ff5c6427b21fa93ac6fc4bd68ffb9a258d
+                              image: maven:3.9-eclipse-temurin-17
                               envVariables:
                                 ADVISOR_OPERATION: upgrade
                                 ADVISOR_VERSION: 1.7.1
-                                MAVEN_MIRROR_URL: http://host.docker.internal:8082/artifactory/spring-enterprise-remote
+                                MAVEN_MIRROR_URL: http://192.168.5.40:8082/artifactory/spring-enterprise-remote
                                 MAVEN_MIRROR_USERNAME: admin
                                 MAVEN_MIRROR_PASSWORD: <+secrets.getValue("ARTIFACTORY_PASSWORD")>
-                                VERIFY_COMMAND: ./mvnw -B test
+                                # The runner gives steps the host's Docker socket, so Testcontainers would try the
+                                # MySQL/Postgres integration tests; this demo skips them (no compose file, slow).
+                                VERIFY_COMMAND: ./mvnw -B test -Dtest='!MySqlIntegrationTests,!PostgresIntegrationTests' -Dsurefire.failIfNoSpecifiedTests=false
                         - step:
                             identifier: open_pull_request
                             type: Run
                             spec:
                               connectorRef: account.harnessImage
-                              image: maven:3.9-eclipse-temurin-17@sha256:c97d0fa42bed8c381518d76d7ca541ff5c6427b21fa93ac6fc4bd68ffb9a258d
+                              image: maven:3.9-eclipse-temurin-17
                               envVariables:
                                 GH_TOKEN: <+secrets.getValue("GH_TOKEN")>

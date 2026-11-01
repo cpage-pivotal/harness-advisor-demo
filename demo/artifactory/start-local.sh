@@ -17,4 +17,4 @@ PY
 fi
 
 docker compose --env-file "$env_file" -f "$here/compose.yaml" up -d
-echo "Artifactory is starting at http://localhost:8082/ui/"
+echo "Artifactory is starting on port 8082 (http://localhost:8082/ui/ on this host)."

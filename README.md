@@ -2,7 +2,7 @@
 
 This repository is a repeatable customer demo using Spring PetClinic on **Spring Boot 3.5.14 / Java 17**. The story has two parts: apply security and bug-fix patches within the current release line, then run an Application Advisor upgrade plan to move to a newer line.
 
-The baseline is 3.5.14, an open-source release from April 2026. Open-source support for 3.5 ended with 3.5.16, so the Patch run moves past the last open-source release to Broadcom's commercial 3.5.17. From 3.5.14 that fixes about 40 published advisories, including critical issues in Tomcat and Spring MVC. The Upgrade run then moves to Spring Boot 4.0. Harness CI runs them on a local Docker runner through a reusable step group template, and opens GitHub pull requests for review.
+The baseline is 3.5.14, an open-source release from April 2026. Open-source support for 3.5 ended with 3.5.16, so the Patch run moves past the last open-source release to Broadcom's commercial 3.5.17. From 3.5.14 that fixes 55 published advisories (9 critical) in PetClinic's dependencies, including critical issues in Tomcat and Spring MVC. The Upgrade run then moves to Spring Boot 4.0. Harness CI runs them on a local Docker runner on a Linux AMD64 host, through a reusable step group template, and opens GitHub pull requests for review.
 
 The application is based on the local Spring PetClinic `boot-3.4.2-baseline` at commit `15a06c1d05d78558f7c306cbc95f9190a9d9f97e`, with the Spring Boot parent raised to 3.5.14. PetClinic's original documentation is in [PETCLINIC.md](PETCLINIC.md), and its Apache 2.0 license is in [LICENSE.txt](LICENSE.txt).
 
@@ -28,7 +28,7 @@ The application is based on the local Spring PetClinic `boot-3.4.2-baseline` at 
    ```
 
 2. Have a Broadcom Spring Enterprise entitlement and registry token available. Enterprise artifacts and the advisor CLI download require it. Configure the token in the local Artifactory remote ([runbook](demo/artifactory/README.md)), then store `ARTIFACTORY_PASSWORD` and a GitHub `GH_TOKEN` as Harness secrets. Harness then needs no Broadcom credentials. Do not commit the values.
-3. In Harness CI, connect this GitHub repository and follow [the Harness runbook](demo/harness/README.md). Use the local Docker runner as build infrastructure; on an Apple Silicon Mac the stage platform is macOS / Arm64 and the step image is pinned to AMD64, as the runbook explains. Harness Free supports the local runner; the delegate and runner process must be online when the pipeline starts.
+3. In Harness CI, connect this GitHub repository and follow [the Harness runbook](demo/harness/README.md). Use the local Docker runner as build infrastructure. The demo runs the delegate, the runner, and Artifactory on a Linux AMD64 host; the runbook also covers an Apple Silicon Mac. Harness Free supports the local runner; the delegate and runner process must be online when the pipeline starts.
 4. Run the **Patch** pipeline against `demo`. Review its PR, merge it, and show the build result.
 5. Run the **Upgrade** pipeline against `demo`. Review the plan and PR, then merge it. An upgrade run applies one plan step; repeat for another step if useful.
 

@@ -1,12 +1,16 @@
 #!/usr/bin/env ruby
-# Configure the local Artifactory Maven remote without putting credentials in Git.
+# Configure the Artifactory Maven remote without putting credentials in Git.
+# ARTIFACTORY_URL selects the instance (default http://localhost:8082), for example
+# ARTIFACTORY_URL=http://192.168.5.40:8082 when Artifactory runs on another host.
 require 'json'
 require 'net/http'
 require 'rexml/document'
 require 'rexml/xpath'
+require 'uri'
 require 'yaml'
 
 here = File.expand_path(__dir__)
+BASE_URL = URI(ENV.fetch('ARTIFACTORY_URL', 'http://localhost:8082').chomp('/'))
 repo = File.expand_path('../..', here)
 vars = YAML.safe_load(File.read(File.join(repo, 'vars.yaml')))
 token = vars.fetch('BROADCOM_REGISTRY_TOKEN')
@@ -34,7 +38,7 @@ def call_api(method, path, password, data = nil, content_type = 'application/jso
     request['Content-Type'] = content_type
     request.body = content_type == 'application/yaml' ? YAML.dump(data) : JSON.generate(data)
   end
-  Net::HTTP.start('localhost', 8082, open_timeout: 10, read_timeout: 45) do |http|
+  Net::HTTP.start(BASE_URL.host, BASE_URL.port, open_timeout: 10, read_timeout: 45) do |http|
     http.request(request)
   end
 end
@@ -83,5 +87,5 @@ raise "Remote verification failed (HTTP #{verified.code})" unless verified.code 
 repositories = JSON.parse(verified.body)
 raise 'Remote repository was not listed' unless repositories.any? { |item| item['key'] == key }
 puts "Configured #{key} as a Maven remote with Broadcom Bearer authentication."
-puts 'URL: http://localhost:8082/artifactory/spring-enterprise-remote'
+puts "URL: #{BASE_URL}/artifactory/spring-enterprise-remote"
 puts "Configuration backup: #{backup_file}"
