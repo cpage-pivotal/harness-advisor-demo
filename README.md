@@ -1,8 +1,10 @@
 # Application Advisor + Harness CI demo
 
-This repository is a repeatable customer demo using Spring PetClinic on **Spring Boot 3.4.2 / Java 17**. The story has two parts: apply security and bug-fix patches within the current release line, then run an Application Advisor upgrade plan to move to a newer line. Harness CI runs them on a local Docker runner through a reusable step group template, and opens GitHub pull requests for review.
+This repository is a repeatable customer demo using Spring PetClinic on **Spring Boot 3.5.14 / Java 17**. The story has two parts: apply security and bug-fix patches within the current release line, then run an Application Advisor upgrade plan to move to a newer line.
 
-The application is based on the local Spring PetClinic `boot-3.4.2-baseline` at commit `15a06c1d05d78558f7c306cbc95f9190a9d9f97e`. PetClinic's original documentation is in [PETCLINIC.md](PETCLINIC.md), and its Apache 2.0 license is in [LICENSE.txt](LICENSE.txt).
+The baseline is 3.5.14, an open-source release from April 2026. Open-source support for 3.5 ended with 3.5.16, so the Patch run moves past the last open-source release to Broadcom's commercial 3.5.17. From 3.5.14 that fixes about 40 published advisories, including critical issues in Tomcat and Spring MVC. The Upgrade run then moves to Spring Boot 4.0. Harness CI runs them on a local Docker runner through a reusable step group template, and opens GitHub pull requests for review.
+
+The application is based on the local Spring PetClinic `boot-3.4.2-baseline` at commit `15a06c1d05d78558f7c306cbc95f9190a9d9f97e`, with the Spring Boot parent raised to 3.5.14. PetClinic's original documentation is in [PETCLINIC.md](PETCLINIC.md), and its Apache 2.0 license is in [LICENSE.txt](LICENSE.txt).
 
 ## What's here
 

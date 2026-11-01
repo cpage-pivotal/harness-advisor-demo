@@ -22,5 +22,7 @@ if git diff --cached --quiet; then
   echo "The demo branch is already at the baseline content."
   exit 0
 fi
-git commit -m "demo: restore Spring Boot 3.4.2 baseline"
+boot_version="$(git show demo-baseline:pom.xml | grep -A3 '<artifactId>spring-boot-starter-parent</artifactId>' \
+  | grep -m1 -o '<version>[^<]*' | sed 's/<version>//')"
+git commit -m "demo: restore Spring Boot ${boot_version:-baseline} baseline"
 echo "Baseline restored in a new commit. Push with: git push origin demo"
