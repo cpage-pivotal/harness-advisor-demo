@@ -18,7 +18,7 @@
 template:
   name: Application Advisor
   identifier: application_advisor
-  versionLabel: v5
+  versionLabel: v6
   type: StepGroup
   description: Apply Spring Application Advisor patches or the next upgrade step to a Maven project and open a GitHub pull request.
   tags:
@@ -56,6 +56,10 @@ template:
                 echo "Use an AMD64 image (on Apple Silicon, pin the image's linux/amd64 digest)." >&2
                 exit 1
               fi
+
+              # The runner creates the workspace as the host user; the step container may run as
+              # another user (root), which git refuses without a safe.directory entry.
+              git config --global --add safe.directory "$PWD"
 
               # Maven: resolve Spring Enterprise artifacts through the repository manager.
               settings="$HOME/.m2/settings.xml"
@@ -104,8 +108,12 @@ template:
               case "$ADVISOR_OPERATION" in
                 patch)
                   advisor patch apply 2>&1 | tee "$out"
-                  changes="$(clean < "$out" | grep '→' | sed -E 's/^[[:space:]]+//' || true)"
-                  count="$(printf '%s\n' "$changes" | grep -c '→' || true)"
+                  # Extract the "group:artifact:version -> version" changes. The advisor prints an
+                  # arrow (U+2192); Harness strips non-ASCII characters from step scripts, so the
+                  # script builds it from its UTF-8 bytes.
+                  arrow=$'\xe2\x86\x92'
+                  changes="$(clean < "$out" | grep -o -E "[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[^[:space:]]+ ${arrow} [^[:space:]]+" | sort -u || true)"
+                  count="$(printf '%s' "$changes" | grep -c "$arrow" || true)"
                   echo "Application Advisor: patch ${count} dependencies" > "$title"
                   {
                     echo "Application Advisor applied the latest patch release of each dependency within its current release line."
@@ -147,7 +155,9 @@ template:
               # clone step writes plugin-build-tool.json. Exclude them in this clone only (pathspec
               # excludes make `git add` fail when the repo already ignores them).
               mkdir -p .git/info && printf '.advisor/\ntarget/\nplugin-build-tool.json\n' >> .git/info/exclude
-              if [[ -z "$(git status --porcelain)" ]]; then
+              # A separate assignment, so a failing git status stops the step under set -e.
+              status="$(git status --porcelain)"
+              if [[ -z "$status" ]]; then
                 echo "Application Advisor made no changes."
                 exit 0
               fi
@@ -181,6 +191,7 @@ template:
               PR_URL=""
               : "${GH_TOKEN:?Set GH_TOKEN to a GitHub token that can push and open pull requests}"
               : "${BASE_BRANCH:?The pipeline must build a branch of a GitHub codebase}"
+              git config --global --add safe.directory "$PWD"
 
               repo="$(git remote get-url origin | sed -E 's#^(https://|git@)github\.com[:/]##; s#\.git$##')"
               if [[ ! "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
