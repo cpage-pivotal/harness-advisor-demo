@@ -60,6 +60,8 @@ settings.xml
 application-advisor-cli-*.tar
 /advisor
 *.log
+# Presenter walkthrough, kept local
+/demo/Demo-Walkthrough.pdf
 
 ### macOS ###
 .DS_Store
