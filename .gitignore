@@ -52,16 +52,14 @@ out/
 vars.yaml
 .playwright-cli/
 .advisor/
-demo/artifactory/data/
-demo/artifactory/downloads/
 # Maven settings hold Broadcom credentials; the advisor CLI is a commercial download
 settings.xml
 .m2/
 application-advisor-cli-*.tar
 /advisor
 *.log
-# Presenter walkthrough, kept local
-/demo/Demo-Walkthrough.pdf
+# Presenter tooling (scripts, Harness YAML, Artifactory, walkthrough), kept local
+/demo/
 
 ### macOS ###
 .DS_Store
